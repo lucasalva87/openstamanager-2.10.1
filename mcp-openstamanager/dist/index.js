@@ -98,7 +98,7 @@ var OsmClient = class {
   async createAnagrafica(data) {
     const response = await this.client.post("/api/index.php", {
       token: this.token,
-      resource: "anagrafiche",
+      resource: "anagrafica",
       data
     });
     return response.data;
@@ -109,7 +109,7 @@ var OsmClient = class {
   async updateAnagrafica(data) {
     const response = await this.client.put("/api/index.php", {
       token: this.token,
-      resource: "anagrafiche",
+      resource: "anagrafica",
       data
     });
     return response.data;
@@ -121,7 +121,7 @@ var OsmClient = class {
     const response = await this.client.delete("/api/index.php", {
       data: {
         token: this.token,
-        resource: "anagrafiche",
+        resource: "anagrafica",
         id
       }
     });

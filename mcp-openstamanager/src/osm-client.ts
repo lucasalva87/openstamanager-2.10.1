@@ -133,7 +133,7 @@ export class OsmClient {
   }): Promise<ApiCreateResponse> {
     const response = await this.client.post('/api/index.php', {
       token: this.token,
-      resource: 'anagrafiche',
+      resource: 'anagrafica',
       data,
     });
     return response.data;
@@ -161,7 +161,7 @@ export class OsmClient {
   }): Promise<ApiUpdateResponse> {
     const response = await this.client.put('/api/index.php', {
       token: this.token,
-      resource: 'anagrafiche',
+      resource: 'anagrafica',
       data,
     });
     return response.data;
@@ -174,7 +174,7 @@ export class OsmClient {
     const response = await this.client.delete('/api/index.php', {
       data: {
         token: this.token,
-        resource: 'anagrafiche',
+        resource: 'anagrafica',
         id,
       },
     });
