@@ -6,19 +6,26 @@
  * and communicating via the JSON-RPC 2.0 protocol over stdio.
  *
  * Usage:
- *   1. Build the server first: npm run build
- *   2. Set environment variables (or create .env):
- *      OSM_BASE_URL=http://your-openstamanager-host/openstamanager
- *      OSM_API_TOKEN=your_api_token_here
- *   3. Run: node test-mcp.js
+ *   node test-mcp.js [tests...]
  *
- * The script will:
- *   - Initialize the MCP connection
- *   - List all available tools
- *   - Call list_anagrafiche (first page)
- *   - Call list_anagrafiche with filter_tipo=Cliente
- *   - Call get_anagrafica on the first record found
- *   - Full CRUD: create_anagrafica → update_anagrafica → delete_anagrafica
+ * Available tests (run all if none specified):
+ *   list      - list_anagrafiche (page 0)
+ *   filter    - list_anagrafiche with filter_tipo=Cliente
+ *   get       - get_anagrafica (uses first ID from list)
+ *   crud      - create + update + delete (full CRUD cycle)
+ *   create    - create_anagrafica only
+ *   update    - update_anagrafica only (requires --id=<ID>)
+ *   delete    - delete_anagrafica only (requires --id=<ID>)
+ *
+ * Examples:
+ *   node test-mcp.js                    # run all tests
+ *   node test-mcp.js list               # only list_anagrafiche
+ *   node test-mcp.js list filter        # list + filter
+ *   node test-mcp.js get                # only get_anagrafica
+ *   node test-mcp.js crud               # full CRUD cycle
+ *   node test-mcp.js create             # only create
+ *   node test-mcp.js update --id=42     # only update record 42
+ *   node test-mcp.js delete --id=42     # only delete record 42
  */
 
 const { spawn } = require('child_process');
@@ -30,6 +37,25 @@ const readline = require('readline');
 const SERVER_PATH = path.join(__dirname, 'dist', 'index.js');
 const OSM_BASE_URL = process.env.OSM_BASE_URL || 'http://localhost/openstamanager';
 const OSM_API_TOKEN = process.env.OSM_API_TOKEN || '';
+
+// ─── Parse CLI arguments ──────────────────────────────────────────────────────
+
+const args = process.argv.slice(2);
+const flags = {};
+const testNames = [];
+
+for (const arg of args) {
+  if (arg.startsWith('--')) {
+    const [key, value] = arg.slice(2).split('=');
+    flags[key] = value !== undefined ? value : true;
+  } else {
+    testNames.push(arg.toLowerCase());
+  }
+}
+
+// If no test names given, run all
+const runAll = testNames.length === 0;
+const shouldRun = (name) => runAll || testNames.includes(name);
 
 // ─── JSON-RPC helpers ─────────────────────────────────────────────────────────
 
@@ -59,6 +85,11 @@ async function runTests() {
   console.log(`Server: ${SERVER_PATH}`);
   console.log(`OSM_BASE_URL: ${OSM_BASE_URL}`);
   console.log(`OSM_API_TOKEN: ${OSM_API_TOKEN ? '***' + OSM_API_TOKEN.slice(-4) : '(not set)'}`);
+  if (testNames.length > 0) {
+    console.log(`Running tests: ${testNames.join(', ')}`);
+  } else {
+    console.log('Running: all tests');
+  }
   console.log('');
 
   // Spawn the MCP server
@@ -134,6 +165,7 @@ async function runTests() {
 
   let passed = 0;
   let failed = 0;
+  let skipped = 0;
 
   function ok(msg) {
     console.log(`   ✓ ${msg}`);
@@ -145,9 +177,27 @@ async function runTests() {
     failed++;
   }
 
+  function skip(msg) {
+    console.log(`   - ${msg} (skipped)`);
+    skipped++;
+  }
+
+  // Helper: call a tool and return parsed JSON result, or null on error
+  async function callTool(name, args) {
+    const result = await sendRequest('tools/call', { name, arguments: args });
+    if (result.isError) {
+      return { error: result.content?.[0]?.text };
+    }
+    try {
+      return { data: JSON.parse(result.content?.[0]?.text || '{}') };
+    } catch {
+      return { error: `Could not parse response: ${result.content?.[0]?.text}` };
+    }
+  }
+
   try {
-    // ── Step 1: Initialize ──────────────────────────────────────────────────
-    console.log('1. Initializing MCP connection...');
+    // ── Initialize (always required) ────────────────────────────────────────
+    console.log('Initializing MCP connection...');
     const initResult = await sendRequest('initialize', {
       protocolVersion: '2024-11-05',
       capabilities: { tools: {} },
@@ -155,174 +205,130 @@ async function runTests() {
     });
     ok(`Server: ${initResult.serverInfo?.name} v${initResult.serverInfo?.version}`);
     ok(`Protocol: ${initResult.protocolVersion}`);
-
-    // Send initialized notification
     sendNotification('notifications/initialized');
     console.log('');
 
-    // ── Step 2: List tools ──────────────────────────────────────────────────
-    console.log('2. Listing available tools...');
+    // ── List tools (always) ─────────────────────────────────────────────────
+    console.log('Listing available tools...');
     const toolsResult = await sendRequest('tools/list');
     const tools = toolsResult.tools || [];
-    ok(`Found ${tools.length} tools:`);
-    for (const tool of tools) {
-      console.log(`     - ${tool.name}: ${tool.description}`);
-    }
+    ok(`Found ${tools.length} tools: ${tools.map(t => t.name).join(', ')}`);
     console.log('');
 
-    // ── Step 3: list_anagrafiche (page 0) ───────────────────────────────────
-    console.log('3. Calling list_anagrafiche (page 0)...');
-    const listResult = await sendRequest('tools/call', {
-      name: 'list_anagrafiche',
-      arguments: { page: 0 },
-    });
-
+    // ── Test: list ──────────────────────────────────────────────────────────
     let firstId = null;
-    if (listResult.isError) {
-      fail(`list_anagrafiche error: ${listResult.content?.[0]?.text}`);
-    } else {
-      const text = listResult.content?.[0]?.text || '{}';
-      try {
-        const data = JSON.parse(text);
-        ok(`Total records: ${data.total_count}`);
-        ok(`Total pages: ${data.total_pages}`);
-        ok(`Records on this page: ${data.anagrafiche?.length || 0}`);
+    if (shouldRun('list')) {
+      console.log('TEST: list_anagrafiche (page 0)');
+      const { data, error } = await callTool('list_anagrafiche', { page: 0 });
+      if (error) {
+        fail(`list_anagrafiche: ${error}`);
+      } else {
+        ok(`Total records: ${data.total_count}, pages: ${data.total_pages}`);
+        ok(`Records on page: ${data.anagrafiche?.length || 0}`);
         if (data.anagrafiche?.length > 0) {
           firstId = data.anagrafiche[0].idanagrafica;
-          ok(`First record: ${data.anagrafiche[0].ragione_sociale} (ID: ${firstId})`);
+          ok(`First: ${data.anagrafiche[0].ragione_sociale} (ID: ${firstId})`);
         }
-      } catch {
-        fail(`Could not parse response: ${text}`);
       }
+      console.log('');
     }
-    console.log('');
 
-    // ── Step 4: list_anagrafiche with filter_tipo ───────────────────────────
-    console.log('4. Calling list_anagrafiche with filter_tipo=Cliente...');
-    const listClientResult = await sendRequest('tools/call', {
-      name: 'list_anagrafiche',
-      arguments: { page: 0, filter_tipo: 'Cliente' },
-    });
-
-    if (listClientResult.isError) {
-      fail(`list_anagrafiche (filter) error: ${listClientResult.content?.[0]?.text}`);
-    } else {
-      const text = listClientResult.content?.[0]?.text || '{}';
-      try {
-        const data = JSON.parse(text);
-        ok(`Clienti found: ${data.total_count}`);
-      } catch {
-        fail(`Could not parse response: ${text}`);
-      }
-    }
-    console.log('');
-
-    // ── Step 5: get_anagrafica ──────────────────────────────────────────────
-    if (firstId !== null) {
-      console.log(`5. Calling get_anagrafica (id=${firstId})...`);
-      const getResult = await sendRequest('tools/call', {
-        name: 'get_anagrafica',
-        arguments: { id: firstId },
-      });
-
-      if (getResult.isError) {
-        fail(`get_anagrafica error: ${getResult.content?.[0]?.text}`);
+    // ── Test: filter ────────────────────────────────────────────────────────
+    if (shouldRun('filter')) {
+      console.log('TEST: list_anagrafiche with filter_tipo=Cliente');
+      const { data, error } = await callTool('list_anagrafiche', { page: 0, filter_tipo: 'Cliente' });
+      if (error) {
+        fail(`list_anagrafiche (filter): ${error}`);
       } else {
-        try {
-          const data = JSON.parse(getResult.content?.[0]?.text || '{}');
+        ok(`Clienti found: ${data.total_count}`);
+      }
+      console.log('');
+    }
+
+    // ── Test: get ───────────────────────────────────────────────────────────
+    if (shouldRun('get')) {
+      const targetId = flags.id ? parseInt(flags.id) : firstId;
+      if (targetId !== null && targetId !== undefined) {
+        console.log(`TEST: get_anagrafica (id=${targetId})`);
+        const { data, error } = await callTool('get_anagrafica', { id: targetId });
+        if (error) {
+          fail(`get_anagrafica: ${error}`);
+        } else {
           ok(`Found: ${data.ragione_sociale} (ID: ${data.idanagrafica})`);
           ok(`City: ${data.citta || '(empty)'}, Email: ${data.email || '(empty)'}`);
-        } catch {
-          fail(`Could not parse get_anagrafica response`);
         }
+      } else {
+        skip('get_anagrafica (no ID available — run "list" first or pass --id=<ID>)');
       }
-    } else {
-      console.log('5. Skipping get_anagrafica (no records found in list)');
+      console.log('');
     }
-    console.log('');
 
-    // ── Step 6: CRUD — create_anagrafica ────────────────────────────────────
-    console.log('6. Testing CRUD: create_anagrafica...');
-    const createResult = await sendRequest('tools/call', {
-      name: 'create_anagrafica',
-      arguments: {
+    // ── Test: create ────────────────────────────────────────────────────────
+    let createdId = null;
+    if (shouldRun('create') || shouldRun('crud')) {
+      console.log('TEST: create_anagrafica');
+      const { data, error } = await callTool('create_anagrafica', {
         ragione_sociale: 'Test MCP Cliente',
         tipi: [1],
         email: 'test-mcp@example.com',
         telefono: '0123456789',
         citta: 'Milano',
         provincia: 'MI',
-      },
-    });
-
-    let newId = null;
-    if (createResult.isError) {
-      fail(`create_anagrafica error: ${createResult.content?.[0]?.text}`);
-    } else {
-      try {
-        const data = JSON.parse(createResult.content?.[0]?.text || '{}');
-        newId = data.id;
-        ok(`Created with ID: ${newId}`);
-      } catch {
-        fail(`Could not parse create_anagrafica response`);
+      });
+      if (error) {
+        fail(`create_anagrafica: ${error}`);
+      } else {
+        createdId = data.id;
+        ok(`Created with ID: ${createdId}`);
       }
+      console.log('');
     }
-    console.log('');
 
-    // ── Step 7: CRUD — update_anagrafica ────────────────────────────────────
-    if (newId !== null) {
-      console.log(`7. Testing CRUD: update_anagrafica (id=${newId})...`);
-      const updateResult = await sendRequest('tools/call', {
-        name: 'update_anagrafica',
-        arguments: {
-          id: newId,
+    // ── Test: update ────────────────────────────────────────────────────────
+    if (shouldRun('update') || shouldRun('crud')) {
+      const targetId = flags.id ? parseInt(flags.id) : createdId;
+      if (targetId !== null && targetId !== undefined) {
+        console.log(`TEST: update_anagrafica (id=${targetId})`);
+        const { data, error } = await callTool('update_anagrafica', {
+          id: targetId,
           telefono: '9876543210',
           citta: 'Roma',
           provincia: 'RM',
-        },
-      });
-
-      if (updateResult.isError) {
-        fail(`update_anagrafica error: ${updateResult.content?.[0]?.text}`);
-      } else {
-        try {
-          const data = JSON.parse(updateResult.content?.[0]?.text || '{}');
+        });
+        if (error) {
+          fail(`update_anagrafica: ${error}`);
+        } else {
           ok(`Updated ID: ${data.id}`);
-        } catch {
-          fail(`Could not parse update_anagrafica response`);
         }
-      }
-      console.log('');
-
-      // ── Step 8: CRUD — delete_anagrafica ──────────────────────────────────
-      console.log(`8. Testing CRUD: delete_anagrafica (id=${newId})...`);
-      const deleteResult = await sendRequest('tools/call', {
-        name: 'delete_anagrafica',
-        arguments: { id: newId },
-      });
-
-      if (deleteResult.isError) {
-        fail(`delete_anagrafica error: ${deleteResult.content?.[0]?.text}`);
       } else {
-        try {
-          const data = JSON.parse(deleteResult.content?.[0]?.text || '{}');
-          ok(`Deleted ID: ${data.id}`);
-        } catch {
-          fail(`Could not parse delete_anagrafica response`);
-        }
+        skip('update_anagrafica (no ID available — run "create" first or pass --id=<ID>)');
       }
       console.log('');
-    } else {
-      console.log('7. Skipping update_anagrafica (create failed)');
-      console.log('8. Skipping delete_anagrafica (create failed)');
+    }
+
+    // ── Test: delete ────────────────────────────────────────────────────────
+    if (shouldRun('delete') || shouldRun('crud')) {
+      const targetId = flags.id ? parseInt(flags.id) : createdId;
+      if (targetId !== null && targetId !== undefined) {
+        console.log(`TEST: delete_anagrafica (id=${targetId})`);
+        const { data, error } = await callTool('delete_anagrafica', { id: targetId });
+        if (error) {
+          fail(`delete_anagrafica: ${error}`);
+        } else {
+          ok(`Deleted ID: ${data.id}`);
+        }
+      } else {
+        skip('delete_anagrafica (no ID available — run "create" first or pass --id=<ID>)');
+      }
       console.log('');
     }
 
     // ── Summary ─────────────────────────────────────────────────────────────
     console.log('=== Test Summary ===');
-    console.log(`   Passed: ${passed}`);
-    console.log(`   Failed: ${failed}`);
-    console.log(`=== All tests completed ===`);
+    console.log(`   ✓ Passed:  ${passed}`);
+    console.log(`   ✗ Failed:  ${failed}`);
+    if (skipped > 0) console.log(`   - Skipped: ${skipped}`);
+    console.log('=== Done ===');
 
   } catch (err) {
     console.error('\n✗ Test failed:', err.message);
