@@ -22,31 +22,37 @@ export interface Anagrafica {
 }
 
 export interface ApiListResponse {
-  status: string;
-  results: Anagrafica[];
+  status: number;
+  message: string;
+  records: Record<string, Anagrafica>;
   'total-count': number;
-  'total-pages': number;
-  page: number;
+  pages: number;
+  module: string | null;
 }
 
 export interface ApiSingleResponse {
-  status: string;
-  results: Anagrafica[];
+  status: number;
+  message: string;
+  records: Record<string, Anagrafica>;
+  module: string | null;
 }
 
 export interface ApiCreateResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
-  op: string;
+  op?: string;
 }
 
 export interface ApiUpdateResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
 }
 
 export interface ApiDeleteResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
 }
 

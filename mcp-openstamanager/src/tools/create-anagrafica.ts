@@ -34,7 +34,7 @@ export type CreateAnagraficaInput = z.infer<typeof createAnagraficaSchema>;
 export async function createAnagrafica(input: CreateAnagraficaInput): Promise<string> {
   const result = await osmClient.createAnagrafica(input);
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 

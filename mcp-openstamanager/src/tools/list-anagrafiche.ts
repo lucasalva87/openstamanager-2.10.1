@@ -22,14 +22,15 @@ export async function listAnagrafiche(input: ListAnagraficheInput): Promise<stri
     filter_tipo: input.filter_tipo,
   });
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 
+  const anagrafiche = Object.values(result.records || {});
+
   return JSON.stringify({
-    anagrafiche: result.results,
+    anagrafiche,
     total_count: result['total-count'],
-    total_pages: result['total-pages'],
-    current_page: result.page,
+    total_pages: result.pages,
   }, null, 2);
 }

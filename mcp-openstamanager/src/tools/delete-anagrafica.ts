@@ -10,7 +10,7 @@ export type DeleteAnagraficaInput = z.infer<typeof deleteAnagraficaSchema>;
 export async function deleteAnagrafica(input: DeleteAnagraficaInput): Promise<string> {
   const result = await osmClient.deleteAnagrafica(input.id);
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 

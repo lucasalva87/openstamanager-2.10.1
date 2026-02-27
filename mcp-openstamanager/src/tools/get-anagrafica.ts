@@ -10,13 +10,14 @@ export type GetAnagraficaInput = z.infer<typeof getAnagraficaSchema>;
 export async function getAnagrafica(input: GetAnagraficaInput): Promise<string> {
   const result = await osmClient.getAnagrafica(input.id);
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 
-  if (!result.results || result.results.length === 0) {
+  const records = Object.values(result.records || {});
+  if (records.length === 0) {
     throw new Error(`Anagrafica with ID ${input.id} not found`);
   }
 
-  return JSON.stringify(result.results[0], null, 2);
+  return JSON.stringify(records[0], null, 2);
 }
