@@ -111,7 +111,7 @@ Create a new anagrafica.
 
 **Parameters:**
 - `ragione_sociale` (string, required): Business name or full name
-- `tipi` (number[], required): Array of type IDs (e.g., `[1]` for Cliente)
+- `tipi` (number[], required): Array of type IDs — see **Anagrafica Types** section below
 - `nome` (string, optional): First name (for individuals)
 - `cognome` (string, optional): Last name (for individuals)
 - `piva` (string, optional): VAT number
@@ -144,6 +144,57 @@ Delete an anagrafica (soft delete - sets `deleted_at` timestamp).
 - `id` (number, required): Anagrafica ID to delete
 
 **Returns:** Confirmation with the deleted ID.
+
+## Anagrafica Types
+
+OpenSTAManager has 6 default anagrafica types stored in the `an_tipianagrafiche` table:
+
+| ID | Name | Description | Use case |
+|----|------|-------------|----------|
+| `1` | **Cliente** | Customer | Sales invoices, contracts, quotes |
+| `2` | **Tecnico** | Technician/Operator | Work orders, interventions |
+| `3` | **Azienda** | Company (reserved) | Your own company — do not create new ones |
+| `4` | **Fornitore** | Supplier | Purchase invoices |
+| `5` | **Vettore** | Carrier/Courier | Delivery notes (DDT) |
+| `6` | **Agente** | Sales Agent | Agent commissions |
+
+> **Note:** An anagrafica can have **multiple types simultaneously** (e.g., a company that is both a Customer and a Supplier).
+
+### Examples
+
+```json
+// Create a Customer
+{ "ragione_sociale": "Mario Rossi Srl", "tipi": [1] }
+
+// Create a Supplier
+{ "ragione_sociale": "Fornitore SpA", "tipi": [4] }
+
+// Create a Technician
+{ "ragione_sociale": "Giovanni Bianchi", "tipi": [2] }
+
+// Create a Sales Agent
+{ "ragione_sociale": "Agente Sud", "tipi": [6] }
+
+// Create a Carrier
+{ "ragione_sociale": "DHL Italia", "tipi": [5] }
+
+// Create a Customer+Supplier (both)
+{ "ragione_sociale": "Acme Srl", "tipi": [1, 4] }
+```
+
+### Legal entity type (`tipo` field)
+
+The `tipo` field (used in `create_anagrafica` and `update_anagrafica`) specifies the legal nature of the entity, which affects electronic invoicing (SDI code):
+
+| Value | Description | Invoicing |
+|-------|-------------|-----------|
+| `Azienda` | Legal entity / company | B2B — 7-char SDI code |
+| `Ente pubblico` | Public administration | B2G/PA — 6-char CUU code |
+| `Privato` | Individual / natural person | B2C — uses tax code (CF) |
+
+> **Tip:** To get the actual IDs used in your OpenSTAManager instance, query the database: `SELECT id, title FROM an_tipianagrafiche LEFT JOIN an_tipianagrafiche_lang ON ...` or use the `list_anagrafiche` tool with `filter_tipo` to verify.
+
+---
 
 ## Architecture
 

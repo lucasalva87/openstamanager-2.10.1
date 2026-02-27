@@ -7,7 +7,9 @@ export const updateAnagraficaSchema = z.object({
   tipi: z
     .array(z.number().int().positive())
     .optional()
-    .describe('Array of anagrafica type IDs'),
+    .describe(
+      'Array of anagrafica type IDs. Default types: 1=Cliente, 2=Tecnico, 3=Azienda (reserved), 4=Fornitore, 5=Vettore, 6=Agente. Multiple types allowed.'
+    ),
   nome: z.string().optional().describe('First name (for individuals)'),
   cognome: z.string().optional().describe('Last name (for individuals)'),
   piva: z.string().optional().describe('VAT number (Partita IVA)'),

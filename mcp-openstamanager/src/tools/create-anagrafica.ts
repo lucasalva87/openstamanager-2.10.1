@@ -9,7 +9,9 @@ export const createAnagraficaSchema = z.object({
   tipi: z
     .array(z.number().int().positive())
     .min(1)
-    .describe('Array of anagrafica type IDs (required, e.g. [1] for Cliente)'),
+    .describe(
+      'Array of anagrafica type IDs (required). Default types: 1=Cliente, 2=Tecnico, 3=Azienda (reserved), 4=Fornitore, 5=Vettore, 6=Agente. Multiple types allowed, e.g. [1,4] for Cliente+Fornitore.'
+    ),
   nome: z.string().optional().describe('First name (for individuals)'),
   cognome: z.string().optional().describe('Last name (for individuals)'),
   piva: z.string().optional().describe('VAT number (Partita IVA)'),
