@@ -6,26 +6,42 @@
  * and communicating via the JSON-RPC 2.0 protocol over stdio.
  *
  * Usage:
- *   node test-mcp.js [tests...]
+ *   node test-mcp.js [tests...] [--flag=value ...]
  *
  * Available tests (run all if none specified):
  *   list      - list_anagrafiche (page 0)
  *   filter    - list_anagrafiche with filter_tipo=Cliente
- *   get       - get_anagrafica (uses first ID from list)
+ *   get       - get_anagrafica (uses first ID from list, or --id=<ID>)
  *   crud      - create + update + delete (full CRUD cycle)
  *   create    - create_anagrafica only
  *   update    - update_anagrafica only (requires --id=<ID>)
  *   delete    - delete_anagrafica only (requires --id=<ID>)
  *
+ * Flags for create/update:
+ *   --ragione_sociale="Mario Rossi Srl"
+ *   --tipi=1              (single type ID, default: 1=Cliente)
+ *   --tipi=1,4            (multiple type IDs, e.g. Cliente+Fornitore)
+ *   --email=info@example.com
+ *   --telefono=0123456789
+ *   --cellulare=3331234567
+ *   --piva=12345678901
+ *   --codice_fiscale=RSSMRA80A01H501Z
+ *   --indirizzo="Via Roma 1"
+ *   --citta=Milano
+ *   --provincia=MI
+ *   --id_nazione=82       (82=Italia)
+ *   --id=42               (for get/update/delete: target record ID)
+ *
  * Examples:
- *   node test-mcp.js                    # run all tests
- *   node test-mcp.js list               # only list_anagrafiche
- *   node test-mcp.js list filter        # list + filter
- *   node test-mcp.js get                # only get_anagrafica
- *   node test-mcp.js crud               # full CRUD cycle
- *   node test-mcp.js create             # only create
- *   node test-mcp.js update --id=42     # only update record 42
- *   node test-mcp.js delete --id=42     # only delete record 42
+ *   node test-mcp.js                                    # run all tests
+ *   node test-mcp.js list                               # only list_anagrafiche
+ *   node test-mcp.js list filter                        # list + filter
+ *   node test-mcp.js get --id=1                         # get record with ID 1
+ *   node test-mcp.js crud                               # full CRUD cycle (default data)
+ *   node test-mcp.js create --ragione_sociale="Acme Srl" --tipi=1 --email=info@acme.it
+ *   node test-mcp.js create --ragione_sociale="Fornitore SpA" --tipi=4
+ *   node test-mcp.js update --id=42 --citta=Roma --provincia=RM
+ *   node test-mcp.js delete --id=42
  */
 
 const { spawn } = require('child_process');
@@ -285,35 +301,73 @@ async function runTests() {
     // ── Test: create ────────────────────────────────────────────────────────
     let createdId = null;
     if (shouldRun('create') || shouldRun('crud')) {
-      console.log('TEST: create_anagrafica');
-      const { data, error } = await callTool('create_anagrafica', {
-        ragione_sociale: 'Test MCP Cliente',
-        tipi: [1],
-        email: 'test-mcp@example.com',
-        telefono: '0123456789',
-        citta: 'Milano',
-        provincia: 'MI',
-      });
-      if (error) {
-        fail(`create_anagrafica: ${error}`);
+      // Build create args from flags (with defaults for crud/automated tests)
+      const isCrud = shouldRun('crud') && !shouldRun('create');
+      const createArgs = {
+        ragione_sociale: flags.ragione_sociale || (isCrud ? 'Test MCP Cliente' : undefined),
+        tipi: flags.tipi
+          ? flags.tipi.split(',').map(Number)
+          : [1],
+      };
+      if (!createArgs.ragione_sociale) {
+        fail('create_anagrafica: --ragione_sociale is required (e.g. --ragione_sociale="Acme Srl")');
+        console.log('');
       } else {
-        createdId = data.id;
-        ok(`Created with ID: ${createdId}`);
+        // Optional fields from flags
+        if (flags.email)          createArgs.email          = flags.email;
+        if (flags.telefono)       createArgs.telefono       = flags.telefono;
+        if (flags.cellulare)      createArgs.cellulare      = flags.cellulare;
+        if (flags.piva)           createArgs.piva           = flags.piva;
+        if (flags.codice_fiscale) createArgs.codice_fiscale = flags.codice_fiscale;
+        if (flags.indirizzo)      createArgs.indirizzo      = flags.indirizzo;
+        if (flags.citta)          createArgs.citta          = flags.citta;
+        if (flags.provincia)      createArgs.provincia      = flags.provincia;
+        if (flags.id_nazione)     createArgs.id_nazione     = parseInt(flags.id_nazione);
+        // Defaults for automated crud test
+        if (isCrud && !flags.email)    createArgs.email    = 'test-mcp@example.com';
+        if (isCrud && !flags.telefono) createArgs.telefono = '0123456789';
+        if (isCrud && !flags.citta)    createArgs.citta    = 'Milano';
+        if (isCrud && !flags.provincia) createArgs.provincia = 'MI';
+
+        console.log(`TEST: create_anagrafica ("${createArgs.ragione_sociale}", tipi=[${createArgs.tipi}])`);
+        const { data, error } = await callTool('create_anagrafica', createArgs);
+        if (error) {
+          fail(`create_anagrafica: ${error}`);
+        } else {
+          createdId = data.id;
+          ok(`Created with ID: ${createdId}`);
+        }
+        console.log('');
       }
-      console.log('');
     }
 
     // ── Test: update ────────────────────────────────────────────────────────
     if (shouldRun('update') || shouldRun('crud')) {
       const targetId = flags.id ? parseInt(flags.id) : createdId;
       if (targetId !== null && targetId !== undefined) {
+        // Build update args from flags
+        const updateArgs = { id: targetId };
+        if (flags.ragione_sociale) updateArgs.ragione_sociale = flags.ragione_sociale;
+        if (flags.tipi)            updateArgs.tipi            = flags.tipi.split(',').map(Number);
+        if (flags.email)           updateArgs.email           = flags.email;
+        if (flags.telefono)        updateArgs.telefono        = flags.telefono;
+        if (flags.cellulare)       updateArgs.cellulare       = flags.cellulare;
+        if (flags.piva)            updateArgs.piva            = flags.piva;
+        if (flags.codice_fiscale)  updateArgs.codice_fiscale  = flags.codice_fiscale;
+        if (flags.indirizzo)       updateArgs.indirizzo       = flags.indirizzo;
+        if (flags.citta)           updateArgs.citta           = flags.citta;
+        if (flags.provincia)       updateArgs.provincia       = flags.provincia;
+        if (flags.id_nazione)      updateArgs.id_nazione      = parseInt(flags.id_nazione);
+        // Defaults for automated crud test (only if no flags provided)
+        const isCrud = shouldRun('crud') && !shouldRun('update');
+        if (isCrud && Object.keys(updateArgs).length === 1) {
+          updateArgs.telefono = '9876543210';
+          updateArgs.citta = 'Roma';
+          updateArgs.provincia = 'RM';
+        }
+
         console.log(`TEST: update_anagrafica (id=${targetId})`);
-        const { data, error } = await callTool('update_anagrafica', {
-          id: targetId,
-          telefono: '9876543210',
-          citta: 'Roma',
-          provincia: 'RM',
-        });
+        const { data, error } = await callTool('update_anagrafica', updateArgs);
         if (error) {
           fail(`update_anagrafica: ${error}`);
         } else {
