@@ -47,3 +47,57 @@ for ($i = 0; $i < sizeof($rs); ++$i) {
 
     $dbo->query($query);
 }
+
+// Aggiungo il flag "Attiva aggiornamenti" se manca (nella migrazione della 2.0 non c'è)
+$rs = $dbo->fetchArray("SELECT idimpostazione FROM zz_impostazioni WHERE nome='Attiva aggiornamenti'");
+
+if (sizeof($rs) == 0) {
+    $dbo->query("INSERT INTO `zz_impostazioni` (`nome`, `valore`, `tipo`, `editable`, `sezione`) VALUES ( 'Attiva aggiornamenti', '1', 'boolean', '0', 'Generali')");
+}
+
+// Spostamento ore di lavoro e diritto di chiamata dei preventivi nella tabella
+$idiva = $dbo->fetchArray("SELECT valore FROM zz_impostazioni WHERE nome='Iva predefinita'")[0]['valore'];
+
+$rs = $dbo->fetchArray('SELECT percentuale, indetraibile FROM co_iva WHERE id='.prepare($idiva));
+$percentuale = $rs[0]['percentuale'];
+$indetraibile = $rs[0]['indetraibile'];
+
+$rs = $dbo->fetchArray('SELECT * FROM co_preventivi WHERE ore_lavoro > 0 OR costo_diritto_chiamata > 0');
+
+for ($i = 0; $i < sizeof($rs); ++$i) {
+    // Ore lavoro
+    if ($rs[$i]['ore_lavoro'] > 0) {
+        $imponibile = $rs[$i]['costo_orario'] * $rs[$i]['ore_lavoro'];
+
+        $iva = $imponibile / 100 * $percentuale;
+        $iva_indetraibile = $imponibile / 100 * $indetraibile;
+
+        $dbo->query('INSERT INTO co_righe_preventivi( idpreventivo, idiva, iva, iva_indetraibile, descrizione, subtotale, sconto, um, qta ) VALUES( '.prepare($rs[$i]['id']).', '.prepare($idiva).', '.prepare($iva).', '.prepare($iva_indetraibile).', "Ore lavoro", '.prepare($imponibile).', "0.00", "ore", '.prepare($rs[$i]['ore_lavoro']).' )');
+    }
+
+    // Ore diritto chiamata
+    if ($rs[$i]['costo_diritto_chiamata'] > 0) {
+        $imponibile = $rs[$i]['costo_diritto_chiamata'];
+
+        $iva = $imponibile / 100 * $percentuale;
+        $iva_indetraibile = $imponibile / 100 * $indetraibile;
+
+        $dbo->query('INSERT INTO co_righe_preventivi( idpreventivo, idiva, iva, iva_indetraibile, descrizione, subtotale, sconto, um, qta ) VALUES( '.prepare($rs[$i]['id']).', '.prepare($idiva).', '.prepare($iva).', '.prepare($iva_indetraibile).', "Diritto chiamata", '.prepare($imponibile).', "0.00", "", '.prepare($rs[$i]['costo_diritto_chiamata']).' )');
+    }
+}
+
+// Eliminazione vecchi file
+$files = [
+    base_dir().'/share/themes/default/css/font-awesome.css',
+    base_dir().'/modules/preventivi/js/',
+];
+delete($files);
+
+/*
+* Spostamento agente di riferimento su nuova tabella an_anagrafiche_agenti
+*/
+$rs = $dbo->fetchArray('SELECT idanagrafica, idagente FROM an_anagrafiche WHERE NOT idagente=0');
+
+for ($i = 0; $i < sizeof($rs); ++$i) {
+    $dbo->query('INSERT INTO an_anagrafiche_agenti( idanagrafica, idagente ) VALUES( '.prepare($rs[$i]['idanagrafica']).', '.prepare($rs[$i]['idagente']).' )');
+}
