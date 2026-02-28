@@ -23,6 +23,9 @@
  *   --tipi=Cliente        (type name, case-insensitive)
  *   --tipi=1,4            (multiple type IDs, e.g. Cliente+Fornitore)
  *   --tipi=Cliente,Fornitore  (multiple type names)
+ *   --tipo=Privato        (legal entity type: Azienda|Privato|Ente pubblico|"")
+ *   --nome=Mario          (first name, for individuals)
+ *   --cognome=Rossi       (last name, for individuals)
  *   --email=info@example.com
  *   --telefono=0123456789
  *   --cellulare=3331234567
@@ -357,6 +360,7 @@ async function runTests() {
         console.log('');
       } else {
         // Optional fields from flags
+        if (flags.tipo !== undefined) createArgs.tipo       = flags.tipo;
         if (flags.email)          createArgs.email          = flags.email;
         if (flags.telefono)       createArgs.telefono       = flags.telefono;
         if (flags.cellulare)      createArgs.cellulare      = flags.cellulare;
@@ -366,6 +370,8 @@ async function runTests() {
         if (flags.citta)          createArgs.citta          = flags.citta;
         if (flags.provincia)      createArgs.provincia      = flags.provincia;
         if (flags.id_nazione)     createArgs.id_nazione     = parseInt(flags.id_nazione);
+        if (flags.nome)           createArgs.nome           = flags.nome;
+        if (flags.cognome)        createArgs.cognome        = flags.cognome;
         // Defaults for automated crud test
         if (isCrud && !flags.email)    createArgs.email    = 'test-mcp@example.com';
         if (isCrud && !flags.telefono) createArgs.telefono = '0123456789';
@@ -390,17 +396,20 @@ async function runTests() {
       if (targetId !== null && targetId !== undefined) {
         // Build update args from flags
         const updateArgs = { id: targetId };
-        if (flags.ragione_sociale) updateArgs.ragione_sociale = flags.ragione_sociale;
-        if (flags.tipi)            updateArgs.tipi            = parseTipi(flags.tipi);
-        if (flags.email)           updateArgs.email           = flags.email;
-        if (flags.telefono)        updateArgs.telefono        = flags.telefono;
-        if (flags.cellulare)       updateArgs.cellulare       = flags.cellulare;
-        if (flags.piva)            updateArgs.piva            = flags.piva;
-        if (flags.codice_fiscale)  updateArgs.codice_fiscale  = flags.codice_fiscale;
-        if (flags.indirizzo)       updateArgs.indirizzo       = flags.indirizzo;
-        if (flags.citta)           updateArgs.citta           = flags.citta;
-        if (flags.provincia)       updateArgs.provincia       = flags.provincia;
-        if (flags.id_nazione)      updateArgs.id_nazione      = parseInt(flags.id_nazione);
+        if (flags.ragione_sociale)    updateArgs.ragione_sociale = flags.ragione_sociale;
+        if (flags.tipo !== undefined) updateArgs.tipo            = flags.tipo;
+        if (flags.tipi)               updateArgs.tipi            = parseTipi(flags.tipi);
+        if (flags.nome)               updateArgs.nome            = flags.nome;
+        if (flags.cognome)            updateArgs.cognome         = flags.cognome;
+        if (flags.email)              updateArgs.email           = flags.email;
+        if (flags.telefono)           updateArgs.telefono        = flags.telefono;
+        if (flags.cellulare)          updateArgs.cellulare       = flags.cellulare;
+        if (flags.piva)               updateArgs.piva            = flags.piva;
+        if (flags.codice_fiscale)     updateArgs.codice_fiscale  = flags.codice_fiscale;
+        if (flags.indirizzo)          updateArgs.indirizzo       = flags.indirizzo;
+        if (flags.citta)              updateArgs.citta           = flags.citta;
+        if (flags.provincia)          updateArgs.provincia       = flags.provincia;
+        if (flags.id_nazione)         updateArgs.id_nazione      = parseInt(flags.id_nazione);
         // Defaults for automated crud test (only if no flags provided)
         const isCrud = shouldRun('crud') && !runAll;
         if (isCrud && Object.keys(updateArgs).length === 1) {
