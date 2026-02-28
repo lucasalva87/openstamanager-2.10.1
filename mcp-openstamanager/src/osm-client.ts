@@ -22,31 +22,37 @@ export interface Anagrafica {
 }
 
 export interface ApiListResponse {
-  status: string;
-  results: Anagrafica[];
+  status: number;
+  message: string;
+  records: Record<string, Anagrafica>;
   'total-count': number;
-  'total-pages': number;
-  page: number;
+  pages: number;
+  module: string | null;
 }
 
 export interface ApiSingleResponse {
-  status: string;
-  results: Anagrafica[];
+  status: number;
+  message: string;
+  records: Record<string, Anagrafica>;
+  module: string | null;
 }
 
 export interface ApiCreateResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
-  op: string;
+  op?: string;
 }
 
 export interface ApiUpdateResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
 }
 
 export interface ApiDeleteResponse {
-  status: string;
+  status: number;
+  message: string;
   id: number;
 }
 
@@ -74,8 +80,18 @@ export class OsmClient {
     filter_ragione_sociale?: string;
     filter_tipo?: string;
   } = {}): Promise<ApiListResponse> {
+    // The OpenSTAManager API uses different resources for type-filtered queries:
+    // - 'clienti' resource: returns only Clienti (type=Cliente), via JOIN on an_tipianagrafiche_lang
+    // - 'anagrafiche' resource: returns all anagrafiche (no type filter)
+    // Note: filter[tipo] on 'anagrafiche' filters on an_anagrafiche.tipo (legal entity type:
+    // "Azienda"/"Privato"/"Ente pubblico"), NOT on the anagrafica category (Cliente/Fornitore/etc.)
+    const tipoNormalized = params.filter_tipo?.toLowerCase().trim();
+    const resource = tipoNormalized === 'cliente' || tipoNormalized === 'clienti'
+      ? 'clienti'
+      : 'anagrafiche';
+
     const queryParams: Record<string, string | number> = {
-      resource: 'anagrafiche',
+      resource,
       token: this.token,
     };
 
@@ -85,7 +101,8 @@ export class OsmClient {
     if (params.filter_ragione_sociale) {
       queryParams['filter[ragione_sociale]'] = params.filter_ragione_sociale;
     }
-    if (params.filter_tipo) {
+    // Only apply filter[tipo] for non-Cliente types (legal entity type filter)
+    if (params.filter_tipo && resource === 'anagrafiche') {
       queryParams['filter[tipo]'] = params.filter_tipo;
     }
 
@@ -127,7 +144,7 @@ export class OsmClient {
   }): Promise<ApiCreateResponse> {
     const response = await this.client.post('/api/index.php', {
       token: this.token,
-      resource: 'anagrafiche',
+      resource: 'anagrafica',
       data,
     });
     return response.data;
@@ -155,7 +172,7 @@ export class OsmClient {
   }): Promise<ApiUpdateResponse> {
     const response = await this.client.put('/api/index.php', {
       token: this.token,
-      resource: 'anagrafiche',
+      resource: 'anagrafica',
       data,
     });
     return response.data;
@@ -168,7 +185,7 @@ export class OsmClient {
     const response = await this.client.delete('/api/index.php', {
       data: {
         token: this.token,
-        resource: 'anagrafiche',
+        resource: 'anagrafica',
         id,
       },
     });

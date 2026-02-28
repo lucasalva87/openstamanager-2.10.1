@@ -34,13 +34,37 @@ export type CreateAnagraficaInput = z.infer<typeof createAnagraficaSchema>;
 export async function createAnagrafica(input: CreateAnagraficaInput): Promise<string> {
   const result = await osmClient.createAnagrafica(input);
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
+  }
+
+  const id = result.id;
+
+  // The OpenSTAManager create API only saves ragione_sociale and tipi.
+  // All other fields must be set via a subsequent update call.
+  const updateFields: Record<string, unknown> = {};
+  if (input.nome)           updateFields.nome           = input.nome;
+  if (input.cognome)        updateFields.cognome        = input.cognome;
+  if (input.piva)           updateFields.piva           = input.piva;
+  if (input.codice_fiscale) updateFields.codice_fiscale = input.codice_fiscale;
+  if (input.indirizzo)      updateFields.indirizzo      = input.indirizzo;
+  if (input.citta)          updateFields.citta          = input.citta;
+  if (input.provincia)      updateFields.provincia      = input.provincia;
+  if (input.id_nazione)     updateFields.id_nazione     = input.id_nazione;
+  if (input.telefono)       updateFields.telefono       = input.telefono;
+  if (input.cellulare)      updateFields.cellulare      = input.cellulare;
+  if (input.email)          updateFields.email          = input.email;
+
+  if (Object.keys(updateFields).length > 0) {
+    const updateResult = await osmClient.updateAnagrafica({ id, ...updateFields } as Parameters<typeof osmClient.updateAnagrafica>[0]);
+    if (updateResult.status !== 200) {
+      throw new Error(`Anagrafica created (ID ${id}) but update of extra fields failed: ${JSON.stringify(updateResult)}`);
+    }
   }
 
   return JSON.stringify({
     success: true,
-    id: result.id,
-    message: `Anagrafica created successfully with ID ${result.id}`,
+    id,
+    message: `Anagrafica created successfully with ID ${id}`,
   }, null, 2);
 }

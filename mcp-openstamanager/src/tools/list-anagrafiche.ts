@@ -10,7 +10,10 @@ export const listAnagraficheSchema = z.object({
   filter_tipo: z
     .string()
     .optional()
-    .describe('Filter by anagrafica type (e.g. Cliente, Fornitore, Tecnico)'),
+    .describe(
+      'Filter by anagrafica category. "Cliente" (or "Clienti") uses the dedicated clienti API resource. ' +
+      'Other values filter on the legal entity type field (an_anagrafiche.tipo): "Azienda", "Privato", "Ente pubblico".'
+    ),
 });
 
 export type ListAnagraficheInput = z.infer<typeof listAnagraficheSchema>;
@@ -22,14 +25,15 @@ export async function listAnagrafiche(input: ListAnagraficheInput): Promise<stri
     filter_tipo: input.filter_tipo,
   });
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 
+  const anagrafiche = Object.values(result.records || {});
+
   return JSON.stringify({
-    anagrafiche: result.results,
+    anagrafiche,
     total_count: result['total-count'],
-    total_pages: result['total-pages'],
-    current_page: result.page,
+    total_pages: result.pages,
   }, null, 2);
 }

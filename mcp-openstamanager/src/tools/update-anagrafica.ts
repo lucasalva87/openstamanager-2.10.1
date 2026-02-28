@@ -33,7 +33,7 @@ export type UpdateAnagraficaInput = z.infer<typeof updateAnagraficaSchema>;
 export async function updateAnagrafica(input: UpdateAnagraficaInput): Promise<string> {
   const result = await osmClient.updateAnagrafica(input);
 
-  if (result.status !== '200') {
+  if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
   }
 
