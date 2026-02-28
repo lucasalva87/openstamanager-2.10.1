@@ -10,7 +10,10 @@ export const listAnagraficheSchema = z.object({
   filter_tipo: z
     .string()
     .optional()
-    .describe('Filter by anagrafica type (e.g. Cliente, Fornitore, Tecnico)'),
+    .describe(
+      'Filter by anagrafica category. "Cliente" (or "Clienti") uses the dedicated clienti API resource. ' +
+      'Other values filter on the legal entity type field (an_anagrafiche.tipo): "Azienda", "Privato", "Ente pubblico".'
+    ),
 });
 
 export type ListAnagraficheInput = z.infer<typeof listAnagraficheSchema>;

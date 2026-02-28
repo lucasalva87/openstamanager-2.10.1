@@ -63,8 +63,10 @@ var OsmClient = class {
    * List anagrafiche with optional filters
    */
   async listAnagrafiche(params = {}) {
+    const tipoNormalized = params.filter_tipo?.toLowerCase().trim();
+    const resource = tipoNormalized === "cliente" || tipoNormalized === "clienti" ? "clienti" : "anagrafiche";
     const queryParams = {
-      resource: "anagrafiche",
+      resource,
       token: this.token
     };
     if (params.page !== void 0) {
@@ -73,7 +75,7 @@ var OsmClient = class {
     if (params.filter_ragione_sociale) {
       queryParams["filter[ragione_sociale]"] = params.filter_ragione_sociale;
     }
-    if (params.filter_tipo) {
+    if (params.filter_tipo && resource === "anagrafiche") {
       queryParams["filter[tipo]"] = params.filter_tipo;
     }
     const response = await this.client.get("/api/index.php", { params: queryParams });
@@ -134,7 +136,9 @@ var osmClient = new OsmClient();
 var listAnagraficheSchema = import_zod.z.object({
   page: import_zod.z.number().int().min(0).optional().describe("Page number (0-based, default 0)"),
   filter_ragione_sociale: import_zod.z.string().optional().describe("Filter by ragione sociale (supports % wildcard)"),
-  filter_tipo: import_zod.z.string().optional().describe("Filter by anagrafica type (e.g. Cliente, Fornitore, Tecnico)")
+  filter_tipo: import_zod.z.string().optional().describe(
+    'Filter by anagrafica category. "Cliente" (or "Clienti") uses the dedicated clienti API resource. Other values filter on the legal entity type field (an_anagrafiche.tipo): "Azienda", "Privato", "Ente pubblico".'
+  )
 });
 async function listAnagrafiche(input) {
   const result = await osmClient.listAnagrafiche({
