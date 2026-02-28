@@ -301,8 +301,8 @@ async function runTests() {
     // ── Test: create ────────────────────────────────────────────────────────
     let createdId = null;
     if (shouldRun('create') || shouldRun('crud')) {
-      // Build create args from flags (with defaults for crud/automated tests)
-      const isCrud = shouldRun('crud') && !shouldRun('create');
+      // isCrud: running 'crud' explicitly (not 'all') — use default test data
+      const isCrud = shouldRun('crud') && !runAll;
       const createArgs = {
         ragione_sociale: flags.ragione_sociale || (isCrud ? 'Test MCP Cliente' : undefined),
         tipi: flags.tipi
@@ -310,7 +310,7 @@ async function runTests() {
           : [1],
       };
       if (!createArgs.ragione_sociale) {
-        fail('create_anagrafica: --ragione_sociale is required (e.g. --ragione_sociale="Acme Srl")');
+        skip('create_anagrafica (--ragione_sociale required; use: node test-mcp.js create --ragione_sociale="Acme Srl")');
         console.log('');
       } else {
         // Optional fields from flags
@@ -359,7 +359,7 @@ async function runTests() {
         if (flags.provincia)       updateArgs.provincia       = flags.provincia;
         if (flags.id_nazione)      updateArgs.id_nazione      = parseInt(flags.id_nazione);
         // Defaults for automated crud test (only if no flags provided)
-        const isCrud = shouldRun('crud') && !shouldRun('update');
+        const isCrud = shouldRun('crud') && !runAll;
         if (isCrud && Object.keys(updateArgs).length === 1) {
           updateArgs.telefono = '9876543210';
           updateArgs.citta = 'Roma';
