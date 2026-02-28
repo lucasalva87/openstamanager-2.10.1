@@ -82,6 +82,40 @@ var OsmClient = class {
     return response.data;
   }
   /**
+   * Check if an anagrafica with tipo Azienda (category ID=3) already exists.
+   * Uses filter[tipo]=Azienda on the legal entity type field, which is set
+   * to "Azienda" for the company's own record.
+   */
+  async aziendaExists() {
+    const response = await this.client.get("/api/index.php", {
+      params: {
+        resource: "anagrafiche",
+        token: this.token,
+        "filter[tipo]": "Azienda"
+      }
+    });
+    const data = response.data;
+    return data.status === 200 && data["total-count"] > 0;
+  }
+  /**
+   * Check if a specific anagrafica has tipo Azienda (category ID=3).
+   * Returns true if the anagrafica with the given ID has tipo=Azienda.
+   */
+  async isAzienda(id) {
+    const response = await this.client.get("/api/index.php", {
+      params: {
+        resource: "anagrafica",
+        token: this.token,
+        id
+      }
+    });
+    const data = response.data;
+    if (data.status !== 200) return false;
+    const records = Object.values(data.records || {});
+    if (records.length === 0) return false;
+    return records[0].tipo === "Azienda";
+  }
+  /**
    * Get a single anagrafica by ID
    */
   async getAnagrafica(id) {
@@ -193,7 +227,16 @@ var createAnagraficaSchema = import_zod3.z.object({
   cellulare: import_zod3.z.string().optional().describe("Mobile phone number"),
   email: import_zod3.z.string().email().optional().describe("Email address")
 });
+var TIPO_AZIENDA_ID = 3;
 async function createAnagrafica(input) {
+  if (input.tipi.includes(TIPO_AZIENDA_ID)) {
+    const exists = await osmClient.aziendaExists();
+    if (exists) {
+      throw new Error(
+        "Cannot create anagrafica with tipo Azienda (ID=3): an Azienda anagrafica already exists. There can only be one Azienda record (the company's own record). Use update_anagrafica to modify the existing one."
+      );
+    }
+  }
   const result = await osmClient.createAnagrafica(input);
   if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);
@@ -263,6 +306,12 @@ var deleteAnagraficaSchema = import_zod5.z.object({
   id: import_zod5.z.number().int().positive().describe("ID of the anagrafica to delete")
 });
 async function deleteAnagrafica(input) {
+  const isAzienda = await osmClient.isAzienda(input.id);
+  if (isAzienda) {
+    throw new Error(
+      `Cannot delete anagrafica ID ${input.id}: this is the Azienda record (the company's own record) and cannot be deleted. Use update_anagrafica to modify it instead.`
+    );
+  }
   const result = await osmClient.deleteAnagrafica(input.id);
   if (result.status !== 200) {
     throw new Error(`API error: ${JSON.stringify(result)}`);

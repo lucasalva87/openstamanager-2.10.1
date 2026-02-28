@@ -31,7 +31,22 @@ export const createAnagraficaSchema = z.object({
 
 export type CreateAnagraficaInput = z.infer<typeof createAnagraficaSchema>;
 
+// Azienda category ID in an_tipianagrafiche (reserved — only one allowed)
+const TIPO_AZIENDA_ID = 3;
+
 export async function createAnagrafica(input: CreateAnagraficaInput): Promise<string> {
+  // Guard: block creation of a second Azienda-type anagrafica
+  if (input.tipi.includes(TIPO_AZIENDA_ID)) {
+    const exists = await osmClient.aziendaExists();
+    if (exists) {
+      throw new Error(
+        'Cannot create anagrafica with tipo Azienda (ID=3): an Azienda anagrafica already exists. ' +
+        'There can only be one Azienda record (the company\'s own record). ' +
+        'Use update_anagrafica to modify the existing one.'
+      );
+    }
+  }
+
   const result = await osmClient.createAnagrafica(input);
 
   if (result.status !== 200) {

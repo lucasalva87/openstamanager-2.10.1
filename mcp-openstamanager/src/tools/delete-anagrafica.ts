@@ -8,6 +8,15 @@ export const deleteAnagraficaSchema = z.object({
 export type DeleteAnagraficaInput = z.infer<typeof deleteAnagraficaSchema>;
 
 export async function deleteAnagrafica(input: DeleteAnagraficaInput): Promise<string> {
+  // Guard: block deletion of the Azienda anagrafica (the company's own record)
+  const isAzienda = await osmClient.isAzienda(input.id);
+  if (isAzienda) {
+    throw new Error(
+      `Cannot delete anagrafica ID ${input.id}: this is the Azienda record (the company's own record) ` +
+      'and cannot be deleted. Use update_anagrafica to modify it instead.'
+    );
+  }
+
   const result = await osmClient.deleteAnagrafica(input.id);
 
   if (result.status !== 200) {
