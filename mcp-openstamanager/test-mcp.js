@@ -20,7 +20,9 @@
  * Flags for create/update:
  *   --ragione_sociale="Mario Rossi Srl"
  *   --tipi=1              (single type ID, default: 1=Cliente)
+ *   --tipi=Cliente        (type name, case-insensitive)
  *   --tipi=1,4            (multiple type IDs, e.g. Cliente+Fornitore)
+ *   --tipi=Cliente,Fornitore  (multiple type names)
  *   --email=info@example.com
  *   --telefono=0123456789
  *   --cellulare=3331234567
@@ -38,8 +40,10 @@
  *   node test-mcp.js list filter                        # list + filter
  *   node test-mcp.js get --id=1                         # get record with ID 1
  *   node test-mcp.js crud                               # full CRUD cycle (default data)
+ *   node test-mcp.js create --ragione_sociale="Acme Srl" --tipi=Cliente --email=info@acme.it
  *   node test-mcp.js create --ragione_sociale="Acme Srl" --tipi=1 --email=info@acme.it
- *   node test-mcp.js create --ragione_sociale="Fornitore SpA" --tipi=4
+ *   node test-mcp.js create --ragione_sociale="Fornitore SpA" --tipi=Fornitore
+ *   node test-mcp.js create --ragione_sociale="Acme Srl" --tipi=Cliente,Fornitore
  *   node test-mcp.js update --id=42 --citta=Roma --provincia=RM
  *   node test-mcp.js delete --id=42
  */
@@ -91,6 +95,43 @@ for (const arg of args) {
 // If no test names given, run all
 const runAll = testNames.length === 0;
 const shouldRun = (name) => runAll || testNames.includes(name);
+
+// ─── Anagrafica type name → ID mapping ───────────────────────────────────────
+// Default OpenSTAManager types (from an_tipianagrafiche table)
+const TIPO_NAME_TO_ID = {
+  'cliente':   1,
+  'clienti':   1,
+  'tecnico':   2,
+  'tecnici':   2,
+  'azienda':   3,
+  'fornitore': 4,
+  'fornitori': 4,
+  'vettore':   5,
+  'vettori':   5,
+  'agente':    6,
+  'agenti':    6,
+};
+
+/**
+ * Parse a --tipi value that can be:
+ *   - numeric IDs:   "1"  "1,4"
+ *   - type names:    "Cliente"  "Cliente,Fornitore"
+ *   - mixed:         "1,Fornitore"
+ * Returns an array of numeric IDs.
+ */
+function parseTipi(value) {
+  return value.split(',').map((v) => {
+    const trimmed = v.trim();
+    const asNum = parseInt(trimmed, 10);
+    if (!isNaN(asNum) && String(asNum) === trimmed) return asNum;
+    const id = TIPO_NAME_TO_ID[trimmed.toLowerCase()];
+    if (id !== undefined) return id;
+    throw new Error(
+      `Unknown tipo name: "${trimmed}". Use a numeric ID (1-6) or one of: ` +
+      Object.keys(TIPO_NAME_TO_ID).filter((k) => !k.endsWith('i') || k === 'agenti').join(', ')
+    );
+  });
+}
 
 // ─── JSON-RPC helpers ─────────────────────────────────────────────────────────
 
@@ -306,7 +347,7 @@ async function runTests() {
       const createArgs = {
         ragione_sociale: flags.ragione_sociale || (isCrud ? 'Test MCP Cliente' : undefined),
         tipi: flags.tipi
-          ? flags.tipi.split(',').map(Number)
+          ? parseTipi(flags.tipi)
           : [1],
       };
       if (!createArgs.ragione_sociale) {
@@ -348,7 +389,7 @@ async function runTests() {
         // Build update args from flags
         const updateArgs = { id: targetId };
         if (flags.ragione_sociale) updateArgs.ragione_sociale = flags.ragione_sociale;
-        if (flags.tipi)            updateArgs.tipi            = flags.tipi.split(',').map(Number);
+        if (flags.tipi)            updateArgs.tipi            = parseTipi(flags.tipi);
         if (flags.email)           updateArgs.email           = flags.email;
         if (flags.telefono)        updateArgs.telefono        = flags.telefono;
         if (flags.cellulare)       updateArgs.cellulare       = flags.cellulare;
