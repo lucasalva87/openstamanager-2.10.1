@@ -159,6 +159,15 @@ class Anagrafiche extends Resource implements RetrieveInterface, CreateInterface
         if (isset($data['tipi'])) {
             $anagrafica->tipologie = (array) $data['tipi'];
         }
+        if (isset($data['tipo'])) {
+            $anagrafica->tipo = $data['tipo'];
+        }
+        if (isset($data['nome'])) {
+            $anagrafica->nome = $data['nome'];
+        }
+        if (isset($data['cognome'])) {
+            $anagrafica->cognome = $data['cognome'];
+        }
 
         $anagrafica->save();
 

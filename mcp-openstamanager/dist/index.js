@@ -215,6 +215,9 @@ var createAnagraficaSchema = import_zod3.z.object({
   tipi: import_zod3.z.array(import_zod3.z.number().int().positive()).min(1).describe(
     "Array of anagrafica type IDs (required). Default types: 1=Cliente, 2=Tecnico, 3=Azienda (reserved), 4=Fornitore, 5=Vettore, 6=Agente. Multiple types allowed, e.g. [1,4] for Cliente+Fornitore."
   ),
+  tipo: import_zod3.z.enum(["", "Azienda", "Privato", "Ente pubblico"]).optional().describe(
+    'Legal entity type (an_anagrafiche.tipo). Affects electronic invoicing (SDI code format): "Azienda" = legal entity/company (B2B, 7-char SDI code); "Privato" = individual/natural person (B2C, uses tax code CF); "Ente pubblico" = public administration (B2G/PA, 6-char CUU code); "" = not specified (default).'
+  ),
   nome: import_zod3.z.string().optional().describe("First name (for individuals)"),
   cognome: import_zod3.z.string().optional().describe("Last name (for individuals)"),
   piva: import_zod3.z.string().optional().describe("VAT number (Partita IVA)"),
@@ -243,6 +246,7 @@ async function createAnagrafica(input) {
   }
   const id = result.id;
   const updateFields = {};
+  if (input.tipo !== void 0) updateFields.tipo = input.tipo;
   if (input.nome) updateFields.nome = input.nome;
   if (input.cognome) updateFields.cognome = input.cognome;
   if (input.piva) updateFields.piva = input.piva;
@@ -272,6 +276,9 @@ var import_zod4 = require("zod");
 var updateAnagraficaSchema = import_zod4.z.object({
   id: import_zod4.z.number().int().positive().describe("ID of the anagrafica to update (required)"),
   ragione_sociale: import_zod4.z.string().min(1).optional().describe("Business name or full name"),
+  tipo: import_zod4.z.enum(["", "Azienda", "Privato", "Ente pubblico"]).optional().describe(
+    'Legal entity type (an_anagrafiche.tipo). Affects electronic invoicing: "Azienda" = legal entity/company (B2B); "Privato" = individual (B2C); "Ente pubblico" = public administration (B2G/PA); "" = not specified.'
+  ),
   tipi: import_zod4.z.array(import_zod4.z.number().int().positive()).optional().describe(
     "Array of anagrafica type IDs. Default types: 1=Cliente, 2=Tecnico, 3=Azienda (reserved), 4=Fornitore, 5=Vettore, 6=Agente. Multiple types allowed."
   ),

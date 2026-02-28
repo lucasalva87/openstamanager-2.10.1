@@ -4,6 +4,14 @@ import { osmClient } from '../osm-client.js';
 export const updateAnagraficaSchema = z.object({
   id: z.number().int().positive().describe('ID of the anagrafica to update (required)'),
   ragione_sociale: z.string().min(1).optional().describe('Business name or full name'),
+  tipo: z
+    .enum(['', 'Azienda', 'Privato', 'Ente pubblico'])
+    .optional()
+    .describe(
+      'Legal entity type (an_anagrafiche.tipo). Affects electronic invoicing: ' +
+      '"Azienda" = legal entity/company (B2B); "Privato" = individual (B2C); ' +
+      '"Ente pubblico" = public administration (B2G/PA); "" = not specified.'
+    ),
   tipi: z
     .array(z.number().int().positive())
     .optional()

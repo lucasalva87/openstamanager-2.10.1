@@ -12,6 +12,16 @@ export const createAnagraficaSchema = z.object({
     .describe(
       'Array of anagrafica type IDs (required). Default types: 1=Cliente, 2=Tecnico, 3=Azienda (reserved), 4=Fornitore, 5=Vettore, 6=Agente. Multiple types allowed, e.g. [1,4] for Cliente+Fornitore.'
     ),
+  tipo: z
+    .enum(['', 'Azienda', 'Privato', 'Ente pubblico'])
+    .optional()
+    .describe(
+      'Legal entity type (an_anagrafiche.tipo). Affects electronic invoicing (SDI code format): ' +
+      '"Azienda" = legal entity/company (B2B, 7-char SDI code); ' +
+      '"Privato" = individual/natural person (B2C, uses tax code CF); ' +
+      '"Ente pubblico" = public administration (B2G/PA, 6-char CUU code); ' +
+      '"" = not specified (default).'
+    ),
   nome: z.string().optional().describe('First name (for individuals)'),
   cognome: z.string().optional().describe('Last name (for individuals)'),
   piva: z.string().optional().describe('VAT number (Partita IVA)'),
@@ -58,6 +68,7 @@ export async function createAnagrafica(input: CreateAnagraficaInput): Promise<st
   // The OpenSTAManager create API only saves ragione_sociale and tipi.
   // All other fields must be set via a subsequent update call.
   const updateFields: Record<string, unknown> = {};
+  if (input.tipo !== undefined) updateFields.tipo       = input.tipo;
   if (input.nome)           updateFields.nome           = input.nome;
   if (input.cognome)        updateFields.cognome        = input.cognome;
   if (input.piva)           updateFields.piva           = input.piva;

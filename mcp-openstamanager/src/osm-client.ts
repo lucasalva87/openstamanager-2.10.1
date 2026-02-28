@@ -192,6 +192,7 @@ export class OsmClient {
   async updateAnagrafica(data: {
     id: number;
     ragione_sociale?: string;
+    tipo?: '' | 'Azienda' | 'Privato' | 'Ente pubblico';
     tipi?: number[];
     nome?: string;
     cognome?: string;
