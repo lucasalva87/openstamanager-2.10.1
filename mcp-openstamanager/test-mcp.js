@@ -120,15 +120,17 @@ const TIPO_NAME_TO_ID = {
  * Returns an array of numeric IDs.
  */
 function parseTipi(value) {
-  return value.split(',').map((v) => {
-    const trimmed = v.trim();
+  // Strip surrounding quotes that some shells may include
+  const cleaned = value.replace(/^["']|["']$/g, '');
+  return cleaned.split(',').map((v) => {
+    const trimmed = v.trim().replace(/^["']|["']$/g, '');
     const asNum = parseInt(trimmed, 10);
     if (!isNaN(asNum) && String(asNum) === trimmed) return asNum;
     const id = TIPO_NAME_TO_ID[trimmed.toLowerCase()];
     if (id !== undefined) return id;
     throw new Error(
       `Unknown tipo name: "${trimmed}". Use a numeric ID (1-6) or one of: ` +
-      Object.keys(TIPO_NAME_TO_ID).filter((k) => !k.endsWith('i') || k === 'agenti').join(', ')
+      'cliente, tecnico, azienda, fornitore, vettore, agente'
     );
   });
 }
