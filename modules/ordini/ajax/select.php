@@ -49,6 +49,10 @@ switch ($resource) {
                 $where[] = '`an_anagrafiche`.`idanagrafica`='.prepare($superselect['idanagrafica']);
 
                 $stato = !empty($superselect['stato']) ? $superselect['stato'] : 'is_fatturabile';
+                $allowed_stati = ['is_fatturabile', 'is_evadibile', 'is_completato'];
+                if (!in_array($stato, $allowed_stati, true)) {
+                    $stato = 'is_fatturabile';
+                }
                 $where[] = '`or_statiordine`.'.$stato.' = 1';
             }
         }
