@@ -58,9 +58,9 @@ switch ($resource) {
 
                 $stato = !empty($superselect['stato']) ? $superselect['stato'] : 'is_pianificabile';
                 $allowed_stati = ['is_pianificabile', 'is_completato', 'is_fatturabile', 'is_concluso'];
-                $stato = !empty($superselect['stato']) && in_array($superselect['stato'], $allowed_stati)
-                    ? $superselect['stato']
-                    : 'is_pianificabile';
+                if (!in_array($stato, $allowed_stati, true)) {
+                    $stato = 'is_pianificabile';
+                }
                 $where[] = '('.$stato.' = 1)';
             }
 
