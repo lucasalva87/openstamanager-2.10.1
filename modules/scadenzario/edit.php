@@ -405,60 +405,64 @@ echo '
     function aggiornaScadenzaNuova(index) {
         content_was_modified = false;
 
-        // Trova la riga della scadenza tramite l\'indice
-        var $row = $("input[name*=\'id_scadenza\'][name*=\'[" + index + "]\']").closest("tr");
-        var id_scadenza = $row.find("input[name*=\'id_scadenza\']").val();
+        // Usa setTimeout per garantire che il valore dell\'input sia aggiornato
+        // prima della lettura, necessario su Linux dove blur precede l\'aggiornamento del valore
+        setTimeout(function() {
+            // Trova la riga della scadenza tramite l\'indice
+            var $row = $("input[name*=\'id_scadenza\'][name*=\'[" + index + "]\']").closest("tr");
+            var id_scadenza = $row.find("input[name*=\'id_scadenza\']").val();
 
-        // Se ha già un ID scadenza, usa la funzione normale
-        if (id_scadenza && id_scadenza !== "") {
-            aggiornaScadenzaInline(id_scadenza);
-            return;
-        }
-
-        // Altrimenti, salva la nuova scadenza
-        var id_banca_azienda = input("id_banca_azienda[" + index + "]").get();
-        var id_banca_controparte = input("id_banca_controparte[" + index + "]").get();
-        var id_pagamento = input("id_pagamento[" + index + "]").get();
-        var scadenza = input("scadenza[" + index + "]").get();
-        var data_concordata = input("data_concordata[" + index + "]").get();
-        var da_pagare = input("da_pagare[" + index + "]").get();
-        var pagato = input("pagato[" + index + "]").get();
-
-        // Verifica se ci sono dati sufficienti per salvare
-        if (!scadenza || !da_pagare || da_pagare == 0) {
-            return; // Non salvare se mancano dati essenziali
-        }
-
-        $.ajax({
-            url: globals.rootdir + "/actions.php",
-            type: "POST",
-            dataType: "json",
-            data: {
-                id_module: globals.id_module,
-                id_record: globals.id_record,
-                op: "save_new_scadenza",
-                index: index,
-                iddocumento: '.$documento['id'].',
-                idanagrafica: '.$record['idanagrafica'].',
-                id_banca_azienda: id_banca_azienda,
-                id_banca_controparte: id_banca_controparte,
-                id_pagamento: id_pagamento,
-                scadenza: scadenza,
-                data_concordata: data_concordata,
-                da_pagare: da_pagare,
-                pagato: pagato
-            },
-            success: function (response) {
-                if (response.success && response.id_record) {
-                    // Aggiorna l\'ID della scadenza nella riga
-                    $row.find("input[name*=\'id_scadenza\']").val(response.id_record);
-                    renderMessages();
-                }
-            },
-            error: function() {
-                console.error("Errore durante il salvataggio della nuova scadenza");
+            // Se ha già un ID scadenza, usa la funzione normale
+            if (id_scadenza && id_scadenza !== "") {
+                aggiornaScadenzaInline(id_scadenza);
+                return;
             }
-        });
+
+            // Altrimenti, salva la nuova scadenza
+            var id_banca_azienda = input("id_banca_azienda[" + index + "]").get();
+            var id_banca_controparte = input("id_banca_controparte[" + index + "]").get();
+            var id_pagamento = input("id_pagamento[" + index + "]").get();
+            var scadenza = input("scadenza[" + index + "]").get();
+            var data_concordata = input("data_concordata[" + index + "]").get();
+            var da_pagare = input("da_pagare[" + index + "]").get();
+            var pagato = input("pagato[" + index + "]").get();
+
+            // Verifica se ci sono dati sufficienti per salvare
+            if (!scadenza || !da_pagare || da_pagare == 0) {
+                return; // Non salvare se mancano dati essenziali
+            }
+
+            $.ajax({
+                url: globals.rootdir + "/actions.php",
+                type: "POST",
+                dataType: "json",
+                data: {
+                    id_module: globals.id_module,
+                    id_record: globals.id_record,
+                    op: "save_new_scadenza",
+                    index: index,
+                    iddocumento: '.$documento['id'].',
+                    idanagrafica: '.$record['idanagrafica'].',
+                    id_banca_azienda: id_banca_azienda,
+                    id_banca_controparte: id_banca_controparte,
+                    id_pagamento: id_pagamento,
+                    scadenza: scadenza,
+                    data_concordata: data_concordata,
+                    da_pagare: da_pagare,
+                    pagato: pagato
+                },
+                success: function (response) {
+                    if (response.success && response.id_record) {
+                        // Aggiorna l\'ID della scadenza nella riga
+                        $row.find("input[name*=\'id_scadenza\']").val(response.id_record);
+                        renderMessages();
+                    }
+                },
+                error: function() {
+                    console.error("Errore durante il salvataggio della nuova scadenza");
+                }
+            });
+        }, 0);
     }
 </script>';
 
@@ -509,54 +513,58 @@ if (!empty($documento)) {
     function aggiornaScadenzaInline(id_scadenza) {
         content_was_modified = false;
 
-        // Trova la riga della scadenza e l indice
-        var $row = $("input[name*=\"id_scadenza\"][value=\"" + id_scadenza + "\"]").closest("tr");
-        var index = null;
+        // Usa setTimeout per garantire che il valore dell\'input sia aggiornato
+        // prima della lettura, necessario su Linux dove blur precede l\'aggiornamento del valore
+        setTimeout(function() {
+            // Trova la riga della scadenza e l indice
+            var $row = $("input[name*=\"id_scadenza\"][value=\"" + id_scadenza + "\"]").closest("tr");
+            var index = null;
 
-        // Trova l indice corretto dal nome del campo
-        $row.find("input[name*=\"id_scadenza\"]").each(function() {
-            var name = $(this).attr("name");
-            var match = name.match(/\[(\d+)\]/);
-            if (match) {
-                index = match[1];
+            // Trova l indice corretto dal nome del campo
+            $row.find("input[name*=\"id_scadenza\"]").each(function() {
+                var name = $(this).attr("name");
+                var match = name.match(/\[(\d+)\]/);
+                if (match) {
+                    index = match[1];
+                }
+            });
+
+            if (index === null) {
+                console.error("Impossibile trovare l indice della scadenza");
+                return;
             }
-        });
 
-        if (index === null) {
-            console.error("Impossibile trovare l indice della scadenza");
-            return;
-        }
+            // Recupera i valori dai campi
+            var id_banca_azienda = input("id_banca_azienda[" + index + "]").get();
+            var id_banca_controparte = input("id_banca_controparte[" + index + "]").get();
+            var id_pagamento = input("id_pagamento[" + index + "]").get();
+            var data_concordata = input("data_concordata[" + index + "]").get();
+            var da_pagare = input("da_pagare[" + index + "]").get();
+            var pagato = input("pagato[" + index + "]").get();
 
-        // Recupera i valori dai campi
-        var id_banca_azienda = input("id_banca_azienda[" + index + "]").get();
-        var id_banca_controparte = input("id_banca_controparte[" + index + "]").get();
-        var id_pagamento = input("id_pagamento[" + index + "]").get();
-        var data_concordata = input("data_concordata[" + index + "]").get();
-        var da_pagare = input("da_pagare[" + index + "]").get();
-        var pagato = input("pagato[" + index + "]").get();
-
-        $.ajax({
-            url: globals.rootdir + "/actions.php",
-            type: "POST",
-            data: {
-                id_module: globals.id_module,
-                id_record: globals.id_record,
-                op: "update_inline_scadenza",
-                id_scadenza: id_scadenza,
-                id_banca_azienda: id_banca_azienda,
-                id_banca_controparte: id_banca_controparte,
-                id_pagamento: id_pagamento,
-                data_concordata: data_concordata,
-                da_pagare: da_pagare,
-                pagato: pagato
-            },
-            success: function (response) {
-                renderMessages();
-            },
-            error: function() {
-                console.error("Errore durante il salvataggio della scadenza");
-            }
-        });
+            $.ajax({
+                url: globals.rootdir + "/actions.php",
+                type: "POST",
+                data: {
+                    id_module: globals.id_module,
+                    id_record: globals.id_record,
+                    op: "update_inline_scadenza",
+                    id_scadenza: id_scadenza,
+                    id_banca_azienda: id_banca_azienda,
+                    id_banca_controparte: id_banca_controparte,
+                    id_pagamento: id_pagamento,
+                    data_concordata: data_concordata,
+                    da_pagare: da_pagare,
+                    pagato: pagato
+                },
+                success: function (response) {
+                    renderMessages();
+                },
+                error: function() {
+                    console.error("Errore durante il salvataggio della scadenza");
+                }
+            });
+        }, 0);
     }
 </script>';
 }
