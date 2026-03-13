@@ -57,6 +57,10 @@ switch ($resource) {
                 $where[] = '`co_preventivi`.`default_revision`=1';
 
                 $stato = !empty($superselect['stato']) ? $superselect['stato'] : 'is_pianificabile';
+                $allowed_stati = ['is_pianificabile', 'is_completato', 'is_fatturabile', 'is_concluso'];
+                if (!in_array($stato, $allowed_stati, true)) {
+                    $stato = 'is_pianificabile';
+                }
                 $where[] = '('.$stato.' = 1)';
             }
 
